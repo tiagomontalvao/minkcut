@@ -9,6 +9,7 @@
 #include <vector>
 using namespace std;
 
+// useful macros
 #define lower first
 #define upper second
 
@@ -16,11 +17,11 @@ using namespace std;
 #define isFixed(x) (fixedEdges.count(x))
 #define isProhibited(x) (!isAvailable(x) and !isFixed(x))
 
-constexpr int MAX_ITER = 100;
 constexpr int N = 1024;
 constexpr int M = 1048576;
 constexpr int INF = 0x3F3F3F3F;
 
+// edge of the graph
 struct Edge {
     int u, v, w, i;
     Edge() {}
@@ -46,6 +47,7 @@ int n, m, k;
 int sumEdgeCosts;
 map<pair<int,int>, pair<int,int>> edgeMap;
 
+// useful struct
 struct edgeSet {
     int i;
     edgeSet() {}
@@ -57,6 +59,7 @@ struct edgeSet {
     }
 };
 
+// node of branch and bound
 struct Node {
     Bounds bounds;
     int currCost, idx, last, cntComponents;
@@ -70,14 +73,9 @@ struct Node {
     Node(set<edgeSet>& avEdges, set<edgeSet>& fixedEdges): Node(avEdges) {
         this->fixedEdges = fixedEdges;
     }
-    // Node(int c, int l, int u, int i, int last): currCost(c), bounds.lower(l), bounds.upper(u), idx(i), last(last) {}
     bool operator<(const Node& o) const {
         return bounds.lower != o.bounds.lower ? bounds.lower < o.bounds.lower : idx < o.idx;
     }
-    bool operator>(const Node& o) const {
-        return bounds.lower != o.bounds.lower ? bounds.lower > o.bounds.lower : idx > o.idx;
-    }
-
     void print() {
         for (int i = 0; i < m; ++i) printf("%2d%c", i, " \n"[i==m-1]);
         for (int i = 0; i < m; ++i) printf("%2d%c", isAvailable(i) ? 1 : isFixed(i) ? 2 : 0, " \n"[i==m-1]);
@@ -85,6 +83,68 @@ struct Node {
     }
 };
 
+void dfs(int u, vector<int>& vis, set<edgeSet>& avEdges, set<edgeSet>& fixedEdges);
+int cntComponents(set<edgeSet>& avEdges, set<edgeSet>& fixedEdges, vector<int>& comp);
+int cntComponents(set<edgeSet>& avEdges, set<edgeSet>& fixedEdges);
+int greedy(set<edgeSet> avEdges, set<edgeSet>& fixedEdges, vector<int>& comp);
+Bounds boundFunction(Node& node);
+pair<int, set<edgeSet>> minkcut(set<edgeSet>& avEdges);
+
+int main() {
+
+    // seed to pseudorangom number generator so that different runs yield different results
+    srand(time(NULL));
+
+    // reads number of vertices, edges and the parameter k, respectively
+    scanf("%d %d %d", &n, &m, &k);
+
+    // allocates graph and list of edges
+    graph.resize(n+1);
+    edgeList.resize(m);
+
+    // initial set of available and fixed edges
+    set<edgeSet> avEdges;
+    set<edgeSet> fixedEdges;
+
+    // reads input, assuming no multiple edges are allowed
+    for (int i = 0, u, v, w; i < m; i++) {
+        scanf("%d %d %d", &u, &v, &w);
+        sumEdgeCosts += w;
+
+        // edgeList[i] contains the i-th edge
+        // edgeList[{u, v}] contains the pair {w, i} of the i-th edge, if u < v (to save space)
+        if (u > v) swap(u, v);
+        edgeList[i] = Edge(u, v, w, i);
+        edgeMap[{u, v}] = {w, i};
+        avEdges.insert(i);
+
+        // creates adjacency list
+        graph[u].push_back(Edge(u, v, w, i));
+        graph[v].push_back(Edge(v, u, w, i));
+    }
+
+    // number of connected components
+    vector<int> vis(n+1);
+    printf("Number of connected components: %d\n", cntComponents(avEdges, fixedEdges, vis));
+
+    // calls the minkcut() function to give answer {bestCost, bestCut}
+    int bestCost;
+    set<edgeSet> bestCut;
+    tie(bestCost, bestCut) = minkcut(avEdges);
+    if (bestCost == INF) return 0*puts("Unfeasible problem");
+
+    // prints bestCost
+    printf("Cost of minimum k-cut: %d\n", bestCost);
+
+    // prints bestCut
+    for (int i = 0; i < m; ++i)
+        if (bestCut.count(i))
+            printf("%d. (%d, %d): %d\n", edgeList[i].i, edgeList[i].u, edgeList[i].v, edgeList[i].w);
+    return 0;
+}
+
+
+// Deapth-first search
 void dfs(int u, vector<int>& vis, set<edgeSet>& avEdges, set<edgeSet>& fixedEdges) {
     for (Edge& edge: graph[u]) {
         int v = edge.v;
@@ -95,6 +155,7 @@ void dfs(int u, vector<int>& vis, set<edgeSet>& avEdges, set<edgeSet>& fixedEdge
     }
 }
 
+// Returns the number of connected components
 int cntComponents(set<edgeSet>& avEdges, set<edgeSet>& fixedEdges, vector<int>& comp) {
     fill(comp.begin(), comp.end(), 0);
     int ans = 0;
@@ -108,30 +169,29 @@ int cntComponents(set<edgeSet>& avEdges, set<edgeSet>& fixedEdges, vector<int>& 
     return ans;
 }
 
+// Returns the number of connected components
 int cntComponents(set<edgeSet>& avEdges, set<edgeSet>& fixedEdges) {
     vector<int> comp(n+1, 0);
     return cntComponents(avEdges, fixedEdges, comp);
 }
 
-int debug = 0;
-
-// guloso para solução inicial
+// Greedy function for primal limit
 int greedy(set<edgeSet> avEdges, set<edgeSet>& fixedEdges, vector<int>& comp) {
+// pair<vector<int>, int> greedy(set<edgeSet> avEdges, set<edgeSet>& fixedEdges, vector<int>& comp) {
+   
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         // vector<int> usedEdges(m, 1);
     vector<int> dad(n+1);
     vector<int> cost(n+1, 0);
     vector<int> vis(n+1, 0);
     set<Edge> heap;
     set<pair<int,int>> S;
-    if (debug) printf("Comp: ");
     for (int i = 1; i <= n; ++i) {
         if (comp[i] == i) {
-            if (debug) printf("%d ", i);
             dad[i] = i;
             cost[i] = INF;
             heap.insert(Edge(i, cost[i]));
         }
     }
-    if (debug) puts("");
     int sumLocalEdgeCosts = 0, cntVertices = 0;
     while (!heap.empty()) {
 
@@ -146,10 +206,10 @@ int greedy(set<edgeSet> avEdges, set<edgeSet>& fixedEdges, vector<int>& comp) {
         comp[u] = comp[dad[u]];
         cntVertices++;
 
-        // if (dad[u] != u) {
         if (edgeCost < INF) {
             S.insert({min(u, dad[u]), max(u, dad[u])});
             sumLocalEdgeCosts += edgeCost;
+            // usedEdges[x.i] = 0;
         }
 
         for (Edge e: graph[u]) {
@@ -160,6 +220,7 @@ int greedy(set<edgeSet> avEdges, set<edgeSet>& fixedEdges, vector<int>& comp) {
                 if (!S.count({min(u, v), max(u,v)})) {
                     S.insert({min(u, v), max(u,v)});
                     sumLocalEdgeCosts += w;
+                    // usedEdges[e.i] = 0;
                 }
                 continue;
             }
@@ -171,77 +232,59 @@ int greedy(set<edgeSet> avEdges, set<edgeSet>& fixedEdges, vector<int>& comp) {
             heap.insert(Edge(v, cost[v], e.i));
         }
     }
-    if (debug) {
-        printf("Comp: ");
-        for (int i = 1; i <= n; ++i)
-            printf("%d%c", comp[i], " \n"[i==n]);
-        printf("%d\n", sumEdgeCosts - sumLocalEdgeCosts);
-    }
     return sumEdgeCosts - sumLocalEdgeCosts;
+    // return {usedEdges[e.i], sumEdgeCosts - sumLocalEdgeCosts};
 }
 
+// Returns a pair {lower, upper} of bounds of a node
 Bounds boundFunction(Node& node) {
-    
+
     int usedEdges = 0;
     int lower = node.currCost;
     vector<int> comp(n+1, -1);
 
     node.cntComponents = cntComponents(node.avEdges, node.fixedEdges, comp);
 
+    // infeasible solutions
     if (node.avEdges.size() < k-node.cntComponents)
         return {INF,INF};
-
     if (node.cntComponents > k)
         return {INF, INF};
 
+    // iterator for getting the k-node.cntComponents cheapest available edges
     set<edgeSet>::iterator it = node.avEdges.begin();
-    if (debug) printf("t: %d\n", node.cntComponents);
     while (it != node.avEdges.end() and usedEdges < k-node.cntComponents) {
         Edge edge = edgeList[it->i];
-        // node.avEdges.erase(node.avEdges.begin());
         ++it;
         lower += edgeMap[{edge.u, edge.v}].first;
         usedEdges++;
     }
+    // infeasible if there are no such edges
     if (usedEdges < k-node.cntComponents)
         return {INF, INF};
-    if (debug) printf("currCost: %d\n", node.currCost);
 
-    // aloca vetores auxiliares
+    // auxiliary vector for the random part
     vector<int> vertices(n+1);
     iota(vertices.begin(), vertices.end(), 0);
-
     random_shuffle(vertices.begin()+1, vertices.end());
+
     int cntComponentsDiscovered = 0;
     vector<int> rep(n+1, 0);
     fill(rep.begin()+1, rep.end(), 0);
-    // vector<int> chosen;
-    // if (debug) printf("here:");
     int l = 0;
+
+    // select the k representants of each connected component
     for (int i = 1; i <= n; ++i) {
         int u = vertices[i];
         if (comp[u] == u) {
             ++cntComponentsDiscovered;
             rep[u] = u;
-            // chosen.push_back(u);
-            // if (debug) printf("%d ", u);
         }
-    // }
-    // for (int i = 1; i <= n; ++i) {
-    //     int u = vertices[i];
         else if (l != k - node.cntComponents) {
             int found = 0;
             for (int v = 1; v <= n; ++v) {
                 if (!edgeMap.count({min(u, v), max(u, v)})) continue;
-                if (debug and u != v and (u == 1 or u == 4 or u == 12 or u == 16 or u == 20) and (v == 1 or v == 4 or v == 12 or v == 16 or u == 20))
-                    printf("AQUWIUIWE: %d %d\n", u, v);
-                // if (comp[v] == v) {
-                //     found = 1;
-                //     break;
-                // }
-                // if (debug and v == 1) printf("UE2: (%d, %d)\n", u, v);
-                // if (debug) printf(" -- (%d, %d)\n", u, v);
-                // if (debug) printf(" ++ (%d, %d)\n", u, v);
+
                 if (node.fixedEdges.count(edgeMap[{min(u, v), max(u, v)}].second)) {
                     found = 1;
                     break;
@@ -250,24 +293,11 @@ Bounds boundFunction(Node& node) {
             if (found) continue;
             ++l;
             rep[u] = u;
-            if (debug) printf("%d ", u);
-            // chosen.push_back(u);
         }
     }
     int upper = -1;
     if (l + cntComponentsDiscovered < k) upper = INF;
-    if (debug) puts("");
     if (upper < INF) upper = greedy(node.avEdges, node.fixedEdges, rep);
-    if (debug) {
-        for (int i = 1; i <= n; ++i)
-            printf("%d%c", comp[i], " \n"[i==n]);
-    }
-
-    if (debug) for (int i = 0; i < m; ++i) {
-        if (!node.fixedEdges.count(i)) continue;
-        int u = edgeList[i].u, v = edgeList[i].v;
-        if (comp[u] != comp[v]) printf("((%d, %d))\n", u, v);
-    }
 
     return {lower, upper};
 }
@@ -275,34 +305,33 @@ Bounds boundFunction(Node& node) {
 // Returns the cost of minimum k-cut of a connected graph
 // Branch and bound implemented
 pair<int, set<edgeSet>> minkcut(set<edgeSet>& avEdges) {
+
+    // initial default values
     int bestCost = INF;
     int nodeIdx = 0;
     set<edgeSet> bestCut;
     set<edgeSet> fixedEdges;
-    // heap
+
+    // struct to store nodes of branch and bound: a binary search tree, used as a heap
     set<Node> heap;
+    
+    // insert full graph with no restrictions on graphs
     Node root = Node(avEdges);
     root.cntComponents = -1;
     root.bounds = boundFunction(root);
     heap.insert(root);
+
+    // while there is vertex to explore
     while (!heap.empty()) {
+
+        // node with lowest lower bound
         Node node = *heap.begin();
         heap.erase(heap.begin());
-        if (node.bounds.lower > node.bounds.upper) {
 
-            printf("Lower: %d\n", node.bounds.lower);
-            printf("Upper: %d\n", node.bounds.upper);
-            
-            for (auto e: node.fixedEdges) printf("(%d, %d)\n", edgeList[e.i].u, edgeList[e.i].v);
-            node.print();
-            debug = 1;
-            boundFunction(node);
-
-            // exit(0);
-
-        }
-        assert(node.bounds.lower <= node.bounds.upper);
+        // if all edges are either fixed or prohibited, it's a possible solution
         if (node.avEdges.size() == 0) {
+
+            // if number of connected components is exactly k and node has a better cost, update bestCost 
             if (node.currCost < bestCost and node.cntComponents == k) {
                 bestCost = node.currCost;
                 bestCut.clear();
@@ -312,20 +341,25 @@ pair<int, set<edgeSet>> minkcut(set<edgeSet>& avEdges) {
             }
             continue;
         }
+
+        // cut the subtree in case of occurrence of some of these conditions
         if (node.cntComponents > k or node.bounds.lower >= bestCost or node.currCost >= bestCost)
             continue;
+
+        // if lower bound is equal to upper bound, there is no reason to explore subtree
         if (node.bounds.lower == node.bounds.upper) {
             if (node.bounds.lower < bestCost) {
                 // printf("node.idx: %d\n", node.idx);
                 bestCost = node.bounds.lower;
                 bestCut.clear();
                 for (int i = 0; i < m; i++)
-                    if (!node.fixedEdges.count(i))
+                    if (!node.fixedEdges.count(i) and !node.avEdges.count(i))
                         bestCut.insert(i);
             }
             continue;
         }
 
+        // next edge to process
         int next = node.last + 1;
 
         // erase edge (edge from cut)
@@ -348,54 +382,4 @@ pair<int, set<edgeSet>> minkcut(set<edgeSet>& avEdges) {
 
     }
     return {bestCost, bestCut};
-}
-
-int main() {
-    srand(time(NULL));
-    // Reads number of vertices, edges and the parameter k, respectively
-    scanf("%d %d %d", &n, &m, &k);
-    // Declares graph and list of edges
-    graph.resize(n+1);
-    edgeList.resize(m);
-
-    set<edgeSet> avEdges;
-    set<edgeSet> fixedEdges;
-    // Reads input, assuming no multiple edges are allowed
-    for (int i = 0, u, v, w; i < m; i++) {
-        scanf("%d %d %d", &u, &v, &w);
-        sumEdgeCosts += w;
-
-        if (u > v) swap(u, v);
-        edgeList[i] = Edge(u, v, w, i);
-        edgeMap[{u, v}] = {w, i};
-        avEdges.insert(i);
-
-        graph[u].push_back(Edge(u, v, w, i));
-        graph[v].push_back(Edge(v, u, w, i));
-    }
-
-    // // tests for g1.txt
-    // avEdges.erase(15);
-    // avEdges.erase(16);
-    // avEdges.erase(32);
-
-    vector<int> vis(n+1);
-    printf("Number of connected components: %d\n", cntComponents(avEdges, fixedEdges, vis));
-
-    // int lower, upper;
-    // tie(lower, upper) = boundFunction(avEdges, fixedEdges, 9);
-    // printf("Lower: %d\n", lower);
-    // printf("Upper: %d\n", upper);
-
-
-    // Calls the minkcut() function to give answer
-    int bestCost;
-    set<edgeSet> bestCut;
-    tie(bestCost, bestCut) = minkcut(avEdges);
-    if (bestCost == INF) return 0*puts("Unfeasible problem");
-    printf("Cost of minimum k-cut: %d\n", bestCost);
-    for (int i = 0; i < m; ++i)
-        if (bestCut.count(i))
-            printf("%d. (%d, %d): %d\n", edgeList[i].i, edgeList[i].u, edgeList[i].v, edgeList[i].w);
-    return 0;
 }
